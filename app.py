@@ -5,21 +5,21 @@ import numpy as np
 import json
 from flask import Flask, jsonify, request
 app = Flask(__name__)
-url = 'https://drive.google.com/a/greendeck.co/uc?id=19r_vn0vuvHpE-rJpFHvXHlMvxa8UOeom&export=download'
-def init_files(dump_path = 'dumps/netaporter_gb.json'):
-    if dump_path.split('/')[0] not in os.listdir():
-        os.mkdir(dump_path.split('/')[0])
-    if os.path.exists(dump_path):
-        pass
-    else:
-        gdown.download(url = url, output = dump_path, quiet=False)
+#url = 'https://drive.google.com/a/greendeck.co/uc?id=19r_vn0vuvHpE-rJpFHvXHlMvxa8UOeom&export=download'
+#def init_files(dump_path = 'dumps/netaporter_gb.json'):
+#    if dump_path.split('/')[0] not in os.listdir():
+#        os.mkdir(dump_path.split('/')[0])
+#    if os.path.exists(dump_path):
+#        pass
+#    else:
+#        gdown.download(url = url, output = dump_path, quiet=False)
 
-init_files('dumps/netaporter_gb.json')
+#init_files('dumps/netaporter_gb.json')
 #global json_data,Products_data
 json_data = pd.DataFrame()
 Products_data = pd.DataFrame()
 
-def prepare_dataset(path = 'dumps/netaporter_gb.json'):
+def prepare_dataset(path = 'netaporter_gb_similar.json'):
     offer_price_list = []
     regular_price_list = []
     Discount_percentage = []
@@ -300,7 +300,7 @@ def Process_inp():
         output = {'competition_discount_diff_list': hig_lst}
         return jsonify(output)
         
-prepare_dataset('dumps/netaporter_gb.json')
+prepare_dataset('netaporter_gb_similar.json')
 
 if __name__ == '__main__':
     app.run(port = 5000, debug=True)
