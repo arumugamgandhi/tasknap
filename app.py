@@ -50,32 +50,56 @@ def prepare_dataset(path = 'netaporter_gb_similar.json'):
     Products_data = json_data.assign(Discounts = Discount_percentage,Brand_name = brands_list)
 
 def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
-  if operand1 == "discount":
-    if operator == ">":
-      result_df = inp_data[inp_data.Discounts>operand2]
-    elif operator == "<":
-      result_df = inp_data[inp_data.Discounts<operand2]
-    elif operator == "==":
-      result_df = inp_data[inp_data.Discounts==operand2]
-  Product_id_list = []
-  for products_id in range(0,len(result_df)):
-    results_dict = result_df['_id'].values[products_id]
-    results_dump = json.dumps(results_dict)
-    results_json_obj = json.loads(results_dump)
-    get_products_id = results_json_obj.get('$oid')
-    Product_id_list.append(get_products_id)
-  return Product_id_list
-#Adding brand name to df
+    Product_id_list = []
+    if operand1 == "discount":
+        if operator == ">":
+            result_df = inp_data[inp_data.Discounts>operand2]
+        elif operator == "<":
+            result_df = inp_data[inp_data.Discounts<operand2]
+        elif operator == "==":
+            result_df = inp_data[inp_data.Discounts==operand2]
+        for products_id in range(0,len(result_df)):
+            results_dict = result_df['_id'].values[products_id]
+            results_dump = json.dumps(results_dict)
+            results_json_obj = json.loads(results_dump)
+            get_products_id = results_json_obj.get('$oid')
+            Product_id_list.append(get_products_id)
+        return Product_id_list
+    if operand1 == "brand.name":
+        brand_spec_data = inp_data[inp_data.Brand_name==operand2]
+        for products_id in range(0,len(brand_spec_data)):
+            results_dict = brand_spec_data['_id'].values[products_id]
+            results_dump = json.dumps(results_dict)
+            results_json_obj = json.loads(results_dump)
+            get_products_id = results_json_obj.get('$oid')
+            Product_id_list.append(get_products_id)
+        return Product_id_list
+         
 def Brand_avg_discount(inp_data,req_query,operator,operand1,operand2):
-  Response_dict = {}
-  brand_df = inp_data[inp_data.Brand_name==operand2]
-  count = len(brand_df)
-  total_discount = brand_df['Discounts'].sum()
-  avg = total_discount/count
-  avg_dis = round(avg,2)
-  Response_dict['avg_discount']=avg_dis
-  Response_dict['discounted_products_count']=count
-  return Response_dict
+    Response_dict = {}
+    if operand1 == "brand.name":
+        brand_df = inp_data[inp_data.Brand_name==operand2]
+        count = len(brand_df)
+        total_discount = brand_df['Discounts'].sum()
+        avg = total_discount/count
+        avg_dis = round(avg,2)
+        Response_dict['avg_discount']=avg_dis
+        Response_dict['discounted_products_count']=count
+        return Response_dict
+    if operand1 == "discount":
+        if operator == ">":
+            result_df = inp_data[inp_data.Discounts>operand2]
+        elif operator == "<":
+            result_df = inp_data[inp_data.Discounts<operand2]
+        elif operator == "==":
+            result_df = inp_data[inp_data.Discounts==operand2]
+        count = len(result_df)
+        total_discount = result_df['Discounts'].sum()
+        avg = total_discount/count
+        avg_dis = round(avg,2)
+        Response_dict['avg_discount']=avg_dis
+        Response_dict['discounted_products_count']=count
+        return Response_dict
 
 def ex_list(json_data,operand2="none"):
     l1_=[]
@@ -227,7 +251,7 @@ def ex_list(json_data,operand2="none"):
                 continue 
     return expensive
 
-def higher_price_list(json_data):
+def higher_price_list(json_data,operand2):
   l1_=[]
   higher = []
   for prod in range(0,len(json_data)):
@@ -253,7 +277,7 @@ def higher_price_list(json_data):
       e = d.get("price")
       f = e.get("basket_price")
       g = f.get("value")
-      h = g/10
+      h = g/operand2
       if(NAP_offer_price>g+h):
         p_id = json_data['_id'].values[prod]
         higher.append(p_id.get("$oid"))
@@ -296,7 +320,11 @@ def Process_inp():
             output = {'expensive_list': exp_lst}
             return jsonify(output)
     if query == "competition_discount_diff_list":
-        hig_lst = higher_price_list(Products_data)
+        filters = request_data_obj.get('filters')
+        op1=filters[0]['operand1']
+        op=filters[0]['operator']
+        op2=filters[0]['operand2']
+        hig_lst = higher_price_list(Products_data,op2)
         output = {'competition_discount_diff_list': hig_lst}
         return jsonify(output)
         
