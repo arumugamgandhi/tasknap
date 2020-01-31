@@ -49,6 +49,8 @@ def prepare_dataset(path = 'netaporter_gb_similar.json'):
         get_brand_name = brand_json_obj.get('name')
         brands_list.append(get_brand_name)
     Products_data = json_data.assign(Discounts = Discount_percentage,Brand_name = brands_list)
+   
+prepare_dataset('netaporter_gb_similar.json')
 
 #To perform first sub_task
 def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
@@ -369,7 +371,6 @@ def Process_inp():
 #prepare_dataset('netaporter_gb_similar.json')
 
 if __name__ == '__main__':
-    prepare_dataset('netaporter_gb_similar.json')
     app.run(port = 5000, debug=True)
 
 
