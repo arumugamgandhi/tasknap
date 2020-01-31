@@ -16,9 +16,10 @@ app = Flask(__name__)
 
 #init_files('dumps/netaporter_gb.json')
 #global json_data,Products_data
-json_data = pd.DataFrame()
-Products_data = pd.DataFrame()
-
+json_data = pd.DataFrame()# To store the given json_data as DF
+Products_data = pd.DataFrame()# To new features added to json_data DF (Discounts, Brand_name)
+# Discount is calculated as regular price - offer price
+# Discount percentage is calculated by (Discount/regular price)*100 and added as a new feature in DF
 def prepare_dataset(path = 'netaporter_gb_similar.json'):
     offer_price_list = []
     regular_price_list = []
@@ -49,6 +50,7 @@ def prepare_dataset(path = 'netaporter_gb_similar.json'):
         brands_list.append(get_brand_name)
     Products_data = json_data.assign(Discounts = Discount_percentage,Brand_name = brands_list)
 
+#To perform first sub_task
 def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
     Product_id_list = []
     if operand1 == "discount":
@@ -58,6 +60,9 @@ def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
             result_df = inp_data[inp_data.Discounts<operand2]
         elif operator == "==":
             result_df = inp_data[inp_data.Discounts==operand2]
+        else:
+            output = [{'Operator Error' : "Please POST a valid operator"}]
+            return output
         for products_id in range(0,len(result_df)):
             results_dict = result_df['_id'].values[products_id]
             results_dump = json.dumps(results_dict)
@@ -65,7 +70,7 @@ def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
             get_products_id = results_json_obj.get('$oid')
             Product_id_list.append(get_products_id)
         return Product_id_list
-    if operand1 == "brand.name":
+    elif operand1 == "brand.name":
         brand_spec_data = inp_data[inp_data.Brand_name==operand2]
         for products_id in range(0,len(brand_spec_data)):
             results_dict = brand_spec_data['_id'].values[products_id]
@@ -74,7 +79,10 @@ def nap_product_discount(inp_data,req_query,operator,operand1,operand2):
             get_products_id = results_json_obj.get('$oid')
             Product_id_list.append(get_products_id)
         return Product_id_list
-         
+    else:
+        output = [{'Operand Error' : "Please POST a valid operand1"}]
+        return output
+#To perform second sub_task
 def Brand_avg_discount(inp_data,req_query,operator,operand1,operand2):
     Response_dict = {}
     if operand1 == "brand.name":
@@ -86,13 +94,16 @@ def Brand_avg_discount(inp_data,req_query,operator,operand1,operand2):
         Response_dict['avg_discount']=avg_dis
         Response_dict['discounted_products_count']=count
         return Response_dict
-    if operand1 == "discount":
+    elif operand1 == "discount":
         if operator == ">":
             result_df = inp_data[inp_data.Discounts>operand2]
         elif operator == "<":
             result_df = inp_data[inp_data.Discounts<operand2]
         elif operator == "==":
             result_df = inp_data[inp_data.Discounts==operand2]
+        else:
+            output = {'Operator Error' : "Please POST a valid operator"}
+            return output
         count = len(result_df)
         total_discount = result_df['Discounts'].sum()
         avg = total_discount/count
@@ -100,189 +111,224 @@ def Brand_avg_discount(inp_data,req_query,operator,operand1,operand2):
         Response_dict['avg_discount']=avg_dis
         Response_dict['discounted_products_count']=count
         return Response_dict
-
-def ex_list(json_data,operand2="none"):
-    l1_=[]
+    else:
+        output = {'Operand Error' : "Please POST a valid operand1"}
+        return output
+#To perform third sub_task
+def ex_list(json_data,operand1="none",operand2="none"):
     expensive = []
-    if operand2 == "none":
+    if operand1 == "none":
       for prod in range(0,len(json_data)):
-        val2 = json_data['similar_products'].values[prod]
-        if(type(val2)==type(2.4)):
+        similar_products_value = json_data['similar_products'].values[prod]
+        if(type(similar_products_value)==type(2.4)):
           continue
-        v_dump = json.dumps(val2)
-        v_json_obj = json.loads(v_dump)
-        a1 = v_json_obj.get('meta')
-        b1= a1.get("total_results")
-        if(b1==0):
+        value_dump = json.dumps(similar_products_value)
+        similar_products_json_obj = json.loads(value_dump)
+        get_meta = similar_products_json_obj.get('meta')
+        get_total_results= get_meta.get("total_results")
+        if(get_total_results==0):
           continue
-        v_price_dict = json_data['price'].values[prod]
-        dump_v = json.dumps(v_price_dict)
-        price_json_obj_v = json.loads(dump_v)
+        prod_price_dict = json_data['price'].values[prod]
+        dump_price = json.dumps(prod_price_dict)
+        price_json_obj_v = json.loads(dump_price)
         get_basket_price = price_json_obj_v.get('basket_price')
         NAP_basket_price = get_basket_price.get('value')
-        a = v_json_obj.get('website_results')
-        b= a.get("5d0cc7b68a66a100014acdb0")
-        c = b.get("knn_items")
-        if(len(c)==1):
-          d= c[0]["_source"]
-          e = d.get("price")
-          f = e.get("basket_price")
-          g = f.get("value")
-          if(NAP_basket_price>g):
+        web_results = similar_products_json_obj.get('website_results')
+        competitor= web_results.get("5d0cc7b68a66a100014acdb0")
+        knn_list= competitor.get("knn_items")
+        if(len(knn_list)==1):
+          competitor_source_json= knn_list[0]["_source"]
+          competitor_price_json = competitor_source_json.get("price")
+          competitor_basket_price_json = competitor_price_json.get("basket_price")
+          competitor_basket_price_value = competitor_basket_price_json.get("value")
+          if(NAP_basket_price>competitor_basket_price_value):
             p_id = json_data['_id'].values[prod]
             expensive.append(p_id.get("$oid"))
             continue
-        b= a.get("5da94e940ffeca000172b12a")
-        c = b.get("knn_items")
-        if(len(c)==1):
-          d= c[0]["_source"]
-          e = d.get("price")
-          f = e.get("basket_price")
-          g = f.get("value")
-          if(NAP_basket_price>g):
+        competitor= web_results.get("5da94e940ffeca000172b12a")
+        knn_list = competitor.get("knn_items")
+        if(len(knn_list)==1):
+          competitor_source_json= knn_list[0]["_source"]
+          competitor_price_json = competitor_source_json.get("price")
+          competitor_basket_price_json = competitor_price_json.get("basket_price")
+          competitor_basket_price_value = competitor_basket_price_json.get("value")
+          if(NAP_basket_price>competitor_basket_price_value):
             p_id = json_data['_id'].values[prod]
             expensive.append(p_id.get("$oid"))
             continue
-        b= a.get("5da94ef80ffeca000172b12c")
-        c = b.get("knn_items")
-        if(len(c)==1):
-          d= c[0]["_source"]
-          e = d.get("price")
-          f = e.get("basket_price")
-          g = f.get("value")
-          if(NAP_basket_price>g):
+        competitor= web_results.get("5da94ef80ffeca000172b12c")
+        knn_list = competitor.get("knn_items")
+        if(len(knn_list)==1):
+          competitor_source_json= knn_list[0]["_source"]
+          competitor_price_json = competitor_source_json.get("price")
+          competitor_basket_price_json = competitor_price_json.get("basket_price")
+          competitor_basket_price_value = competitor_basket_price_json.get("value")
+          if(NAP_basket_price>competitor_basket_price_value):
             p_id = json_data['_id'].values[prod]
             expensive.append(p_id.get("$oid"))
             continue
-        b= a.get("5da94f270ffeca000172b12e")
-        c = b.get("knn_items")
-        if(len(c)==1):
-          d= c[0]["_source"]
-          e = d.get("price")
-          f = e.get("basket_price")
-          g = f.get("value")
-          if(NAP_basket_price>g):
+        competitor= web_results.get("5da94f270ffeca000172b12e")
+        knn_list = competitor.get("knn_items")
+        if(len(knn_list)==1):
+          competitor_source_json= knn_list[0]["_source"]
+          competitor_price_json = competitor_source_json.get("price")
+          competitor_basket_price_json = competitor_price_json.get("basket_price")
+          competitor_basket_price_value = competitor_basket_price_json.get("value")
+          if(NAP_basket_price>competitor_basket_price_value):
             p_id = json_data['_id'].values[prod]
             expensive.append(p_id.get("$oid"))
             continue
-        b= a.get("5da94f4e6d97010001f81d72")
-        c = b.get("knn_items")
-        if(len(c)==1):
-          d= c[0]["_source"]
-          e = d.get("price")
-          f = e.get("basket_price")
-          g = f.get("value")
-          if(NAP_basket_price>g):
+        competitor= web_results.get("5da94f4e6d97010001f81d72")
+        knn_list = competitor.get("knn_items")
+        if(len(knn_list)==1):
+          competitor_source_json= knn_list[0]["_source"]
+          competitor_price_json = competitor_source_json.get("price")
+          competitor_basket_price_json = competitor_price_json.get("basket_price")
+          competitor_basket_price_value = competitor_basket_price_json.get("value")
+          if(NAP_basket_price>competitor_basket_price_value):
             p_id = json_data['_id'].values[prod]
             expensive.append(p_id.get("$oid"))
             continue
-    else:
+    elif operand1 == "brand.name":
         spec_data = json_data[json_data.Brand_name==operand2]
         for prod in range(0,len(spec_data)):
-            val2 = spec_data['similar_products'].values[prod]
-            if(type(val2)==type(2.4)):
+            similar_products_value = spec_data['similar_products'].values[prod]
+            if(type(similar_products_value)==type(2.4)):
               continue
-            v_dump = json.dumps(val2)
-            v_json_obj = json.loads(v_dump)
-            a1 = v_json_obj.get('meta')
-            b1= a1.get("total_results")
-            if(b1==0):
+            value_dump = json.dumps(similar_products_value)
+            similar_products_json_obj = json.loads(value_dump)
+            get_meta = similar_products_json_obj.get('meta')
+            get_total_results= get_meta.get("total_results")
+            if(get_total_results==0):
               continue
-            v_price_dict = spec_data['price'].values[prod]
-            dump_v = json.dumps(v_price_dict)
-            price_json_obj_v = json.loads(dump_v)
+            prod_price_dict = spec_data['price'].values[prod]
+            dump_price = json.dumps(prod_price_dict)
+            price_json_obj_v = json.loads(dump_price)
             get_basket_price = price_json_obj_v.get('basket_price')
             NAP_basket_price = get_basket_price.get('value')
-            a = v_json_obj.get('website_results')
-            b= a.get("5d0cc7b68a66a100014acdb0")
-            c = b.get("knn_items")
-            if(len(c)==1):
-              d= c[0]["_source"]
-              e = d.get("price")
-              f = e.get("basket_price")
-              g = f.get("value")
-              if(NAP_basket_price>g):
+            web_results = similar_products_json_obj.get('website_results')
+            competitor= web_results.get("5d0cc7b68a66a100014acdb0")
+            knn_list = competitor.get("knn_items")
+            if(len(knn_list)==1):
+              competitor_source_json= knn_list[0]["_source"]
+              competitor_price_json = competitor_source_json.get("price")
+              competitor_basket_price_json = competitor_price_json.get("basket_price")
+              competitor_basket_price_value = competitor_basket_price_json.get("value")
+              if(NAP_basket_price>competitor_basket_price_value):
                 p_id = spec_data['_id'].values[prod]
                 expensive.append(p_id.get("$oid"))
                 continue
-            b= a.get("5da94e940ffeca000172b12a")
-            c = b.get("knn_items")
-            if(len(c)==1):
-              d= c[0]["_source"]
-              e = d.get("price")
-              f = e.get("basket_price")
-              g = f.get("value")
-              if(NAP_basket_price>g):
+            competitor= web_results.get("5da94e940ffeca000172b12a")
+            knn_list = competitor.get("knn_items")
+            if(len(knn_list)==1):
+              competitor_source_json= knn_list[0]["_source"]
+              competitor_price_json = competitor_source_json.get("price")
+              competitor_basket_price_json = competitor_price_json.get("basket_price")
+              competitor_basket_price_value = competitor_basket_price_json.get("value")
+              if(NAP_basket_price>competitor_basket_price_value):
                 p_id = spec_data['_id'].values[prod]
                 expensive.append(p_id.get("$oid"))
                 continue
-            b= a.get("5da94ef80ffeca000172b12c")
-            c = b.get("knn_items")
-            if(len(c)==1):
-              d= c[0]["_source"]
-              e = d.get("price")
-              f = e.get("basket_price")
-              g = f.get("value")
-              if(NAP_basket_price>g):
+            competitor= web_results.get("5da94ef80ffeca000172b12c")
+            knn_list = competitor.get("knn_items")
+            if(len(knn_list)==1):
+              competitor_source_json= knn_list[0]["_source"]
+              competitor_price_json = competitor_source_json.get("price")
+              competitor_basket_price_json = competitor_price_json.get("basket_price")
+              competitor_basket_price_value = competitor_basket_price_json.get("value")
+              if(NAP_basket_price>competitor_basket_price_value):
                 p_id = spec_data['_id'].values[prod]
                 expensive.append(p_id.get("$oid"))
                 continue
-            b= a.get("5da94f270ffeca000172b12e")
-            c = b.get("knn_items")
-            if(len(c)==1):
-              d= c[0]["_source"]
-              e = d.get("price")
-              f = e.get("basket_price")
-              g = f.get("value")
-              if(NAP_basket_price>g):
+            competitor= web_results.get("5da94f270ffeca000172b12e")
+            knn_list = competitor.get("knn_items")
+            if(len(knn_list)==1):
+              competitor_source_json= knn_list[0]["_source"]
+              competitor_price_json = competitor_source_json.get("price")
+              competitor_basket_price_json = competitor_price_json.get("basket_price")
+              competitor_basket_price_value = competitor_basket_price_json.get("value")
+              if(NAP_basket_price>competitor_basket_price_value):
                 p_id = spec_data['_id'].values[prod]
                 expensive.append(p_id.get("$oid"))
                 continue
-            b= a.get("5da94f4e6d97010001f81d72")
-            c = b.get("knn_items")
-            if(len(c)==1):
-              d= c[0]["_source"]
-              e = d.get("price")
-              f = e.get("basket_price")
-              g = f.get("value")
-              if(NAP_basket_price>g):
+            competitor= web_results.get("5da94f4e6d97010001f81d72")
+            knn_list = competitor.get("knn_items")
+            if(len(knn_list)==1):
+              competitor_source_json= knn_list[0]["_source"]
+              competitor_price_json = competitor_source_json.get("price")
+              competitor_basket_price_json = competitor_price_json.get("basket_price")
+              competitor_basket_price_value = competitor_basket_price_json.get("value")
+              if(NAP_basket_price>competitor_basket_price_value):
                 p_id = spec_data['_id'].values[prod]
                 expensive.append(p_id.get("$oid"))
                 continue 
+    else:
+        output = [{'Operand Error' : "Please POST web_results valid operand1"}]
+        return output    
     return expensive
-
-def higher_price_list(json_data,operand2):
-  l1_=[]
+#To perform forth sub_task
+def higher_price_list(json_data,competitor_id,operand2):
   higher = []
   for prod in range(0,len(json_data)):
-    val2 = json_data['similar_products'].values[prod]
-    if(type(val2)==type(2.4)):
+    similar_products_value = json_data['similar_products'].values[prod]
+    if(type(similar_products_value)==type(2.4)):
       continue
-    v_dump = json.dumps(val2)
-    v_json_obj = json.loads(v_dump)
-    a1 = v_json_obj.get('meta')
-    b1= a1.get("total_results")
-    if(b1==0):
+    value_dump = json.dumps(similar_products_value)
+    similar_products_json_obj = json.loads(value_dump)
+    get_meta = similar_products_json_obj.get('meta')
+    get_total_results= get_meta.get("total_results")
+    if(get_total_results==0):
       continue
-    v_price_dict = json_data['price'].values[prod]
-    dump_v = json.dumps(v_price_dict)
-    price_json_obj_v = json.loads(dump_v)
+    prod_price_dict = json_data['price'].values[prod]
+    dump_price = json.dumps(prod_price_dict)
+    price_json_obj_v = json.loads(dump_price)
     get_nap_offer_price = price_json_obj_v.get('basket_price')
     NAP_offer_price = get_nap_offer_price.get('value')
-    a = v_json_obj.get('website_results')
-    b= a.get("5d0cc7b68a66a100014acdb0")
-    c = b.get("knn_items")
-    if(len(c)==1):
-      d= c[0]["_source"]
-      e = d.get("price")
-      f = e.get("basket_price")
-      g = f.get("value")
-      h = g/operand2
-      if(NAP_offer_price>g+h):
+    web_results = similar_products_json_obj.get('website_results')
+    if competitor_id == "5d0cc7b68a66a100014acdb0":
+        competitor= web_results.get("5d0cc7b68a66a100014acdb0")
+    elif competitor_id == "5da94e940ffeca000172b12a":
+        competitor= web_results.get("5da94e940ffeca000172b12a")
+    elif competitor_id == "5da94ef80ffeca000172b12c":
+        competitor= web_results.get("5da94ef80ffeca000172b12c")
+    elif competitor_id == "5da94f270ffeca000172b12e":
+        competitor= web_results.get("5da94f270ffeca000172b12e")
+    elif competitor_id == "5da94f4e6d97010001f81d72":
+        competitor= web_results.get("5da94f4e6d97010001f81d72")
+    knn_list = competitor.get("knn_items")
+    if(len(knn_list)==1):
+      competitor_source_json= knn_list[0]["_source"]
+      competitor_price_json = competitor_source_json.get("price")
+      competitor_basket_price_json = competitor_price_json.get("basket_price")
+      competitor_basket_price_value = competitor_basket_price_json.get("value")
+      n_percent_of_comp_price = competitor_basket_price_value/operand2
+      if(NAP_offer_price>competitor_basket_price_value+n_percent_of_comp_price):
         p_id = json_data['_id'].values[prod]
         higher.append(p_id.get("$oid"))
   return higher
-
+#To obtain filters from requested json_query
+def get_filter(query,request_json_obj):
+    try:
+        if query == "competition_discount_diff_list":
+            filters = request_json_obj.get('filters')
+            op11=filters[0]['operand1']
+            op1=filters[0]['operator']
+            op21=filters[0]['operand2']
+            op12=filters[1]['operand1']
+            op2=filters[1]['operator']
+            op22=filters[1]['operand2']
+            return filters,op11,op1,op21,op12,op2,op22
+        else:
+            filters = request_json_obj.get('filters')
+            op1=filters[0]['operand1']
+            op=filters[0]['operator']
+            op2=filters[0]['operand2']
+            return filters,op1,op2,op
+    except:
+        output = {'Operator Error' : "Please POST a valid operator"}
+        return output
+        
+    
 @app.route('/', methods=['POST'])
 
 def Process_inp():
@@ -292,45 +338,38 @@ def Process_inp():
     request_data_obj = json.loads(request_data)
     query = request_data_obj.get('query_type')
     if query == "discounted_products_list":
-        filters = request_data_obj.get('filters')
-        op1=filters[0]['operand1']
-        op=filters[0]['operator']
-        op2=filters[0]['operand2']
+        filters,op1,op2,op = get_filter(query,request_data_obj)
         l_=nap_product_discount(Products_data,query,op,op1,op2)
         output = {'discounted_products_list': l_}
         return jsonify(output)
-    if query == "discounted_products_count|avg_discount":
-        filters = request_data_obj.get('filters')
-        op1=filters[0]['operand1']
-        op=filters[0]['operator']
-        op2=filters[0]['operand2']
+    elif query == "discounted_products_count|avg_discount":
+        filters,op1,op2,op = get_filter(query,request_data_obj)
         output=Brand_avg_discount(Products_data,query,op,op1,op2)
         return jsonify(output)
-    if query == "expensive_list":
+    elif query == "expensive_list":
         filters = request_data_obj.get('filters')
         if (filters):
-            op1=filters[0]['operand1']
-            op=filters[0]['operator']
-            op2=filters[0]['operand2']
-            exp_lst = ex_list(Products_data,op2)
+            filters,op1,op2,op = get_filter(query,request_data_obj)
+            exp_lst = ex_list(Products_data,op1,op2)
             output = {'expensive_list': exp_lst}
             return jsonify(output)
         else:
             exp_lst = ex_list(Products_data)
             output = {'expensive_list': exp_lst}
             return jsonify(output)
-    if query == "competition_discount_diff_list":
-        filters = request_data_obj.get('filters')
-        op1=filters[0]['operand1']
-        op=filters[0]['operator']
-        op2=filters[0]['operand2']
-        hig_lst = higher_price_list(Products_data,op2)
+    elif query == "competition_discount_diff_list":
+        filters,op11,op1,op21,op12,op2,op22 = get_filter(query,request_data_obj)
+        hig_lst = higher_price_list(Products_data,op22,op21)
         output = {'competition_discount_diff_list': hig_lst}
         return jsonify(output)
+    else:
+        output = {'Query Error' : "Please POST a valid query"}
+        return jsonify(output)
         
-prepare_dataset('netaporter_gb_similar.json')
+#prepare_dataset('netaporter_gb_similar.json')
 
 if __name__ == '__main__':
+    prepare_dataset('netaporter_gb_similar.json')
     app.run(port = 5000, debug=True)
 
 
